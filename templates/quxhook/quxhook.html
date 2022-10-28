@@ -1,0 +1,244 @@
+{% extends '_blank.html' %}
+{% load static %}
+{% block customstyle %}
+{{ block.super }}
+<style>
+  .card-webhook:nth-child(2n + 1) {
+    background-color: #f0f0f0;
+  }
+
+  .dropdown-item {
+    cursor: pointer;
+  }
+</style>
+{% endblock %}
+
+{% block qux_content %}
+<div class="container">
+  <div>
+    <h1 style="line-height: 1.5 !important">
+
+      Webhooks
+    </h1>
+  </div>
+
+  <div class="row my-4">
+    <div class="col-12 py-3 d-none d-md-block">
+      <div class="row align-items-center">
+        <div class="col-2">App</div>
+        <div class="col-2">Task/Event</div>
+        <div class="col-4">URL</div>
+        <div class="col-4">
+          <div class="row align-items-center">
+            <div class="col-6">Secret Key</div>
+            <div class="col-6">&nbsp;</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% csrf_token %} {% for option in webhooks %}
+    <div class="card-webhook col-12 py-3">
+      <div class="row align-items-center">
+        <div class="col-12 col-md-2">
+          <label class="col-form-label font-weight-bold" for="url_{{option.id}}">{{ option.app }}</label>
+        </div>
+        <div class="col-12 col-md-2">
+          <label class="col-form-label font-weight-bold"
+            for="url_{{option.id}}">{{option.task}}/{{option.event}}</label>
+        </div>
+        <div class="col-12 col-md-4">
+          <input type="text" id="url_{{option.id}}" name="url_{{option.id}}"
+            value="{% if option.url %}{{option.url}}{% endif %}" class="form-control foo-border"
+            placeholder="Enter Callback URL" onchange="onChangeURL({{option.id}})" />
+          {% comment %} <label id="label_{{option.id}}" class="form-label text-muted small"> </label> {% endcomment %}
+        </div>
+        <div class="col-12 col-md-4">
+          <div class="row align-items-center no-gutters">
+            <!-- Secret Key -->
+            <div class="col-6 pt-3 pt-md-0 text-nowrap">
+              <code>{{option.secret}}</code>
+            </div>
+
+            <!-- Verify -->
+            <div class="col-3 pt-3 pt-md-0 px-1">
+              <button id="button_{{option.id}}"
+                class="btn btn-outline-dark btn-block {% if option.is_validated %}disabled{% endif %}"
+                onclick="verifycall({{option.id}})" data-toggle="tooltip" data-placement="left"
+                title="{% if option.is_validated %}Verified{% else %}Verify{% endif %}">
+                <span class="text-nowrap">
+                  <i id="btn_verify_{{option.id}}"
+                    class="fas {% if option.is_validated %}fa-check-double{% else %}fa-check{% endif %}"></i>
+                </span>
+              </button>
+            </div>
+
+            <!-- Testing -->
+            <div class="col-3 pt-3 pt-md-0 px-1">
+              <button id="button_{{option.id}}"
+                class="btn btn-block {% if option.is_validated %}btn-secondary{% else %}btn-outline-secondary disabled{% endif %} "
+                onclick="test_webhook({{option.id}})" data-toggle="tooltip" data-placement="left" <span
+                class="text-nowrap">
+                {% comment %} <i class="fas fa-tasks pr-3"></i> {% endcomment %}
+                </span>Test
+              </button>
+
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row my-0">
+        <div class="col-4"></div>
+        <div class="col-4">
+          <label id="label_{{option.id}}" class="form-label text-muted small"> </label>
+        </div>
+        <div class="col-4"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="row my-4">
+    <div class="col">
+      <small>
+        URL must return Secret Key on GET method request to verify webhook url
+      </small>
+    </div>
+  </div>
+</div>
+{% endblock qux_content %}
+
+{% block customjs %}
+{{ block.super }}
+<script type="text/javascript">
+  function changeButton(id, btn_action) {
+    let button = $("#button_" + id);
+    let btn_verify = $("#btn_verify_" + id);
+    let button_webhook = $("#dropdown_" + id);
+
+    if (btn_action == "verify") {
+      if (button.hasClass("disabled")) {
+        button.removeClass("disabled");
+        // button.html('Verify');
+      }
+      if (btn_verify.hasClass("fa-check-double")) {
+        btn_verify.removeClass("fa-check-double");
+        btn_verify.addClass("fa-check");
+      }
+
+      // button_webhook.prop("disabled", true);
+      if (button_webhook.hasClass("btn-secondary")) {
+        button_webhook.removeClass("btn-secondary");
+        button_webhook.addClass("btn-outline-secondary");
+        button_webhook.addClass("disabled");
+      }
+    } else if (btn_action == "verified") {
+      button.addClass("disabled");
+      if (btn_verify.hasClass("fa-check")) {
+        btn_verify.removeClass("fa-check");
+        btn_verify.addClass("fa-check-double");
+      }
+      // button.html('Verified');
+      // button.prop("onclick", null).off("click");
+
+      // button_webhook.prop("disabled", false);
+      if (button_webhook.hasClass("btn-outline-secondary")) {
+        button_webhook.removeClass("btn-outline-secondary");
+        button_webhook.addClass("btn-secondary");
+        button_webhook.removeClass("disabled");
+      }
+    }
+  }
+
+  function onChangeURL(id) {
+    changeButton(id, "verify");
+  }
+
+  function verifycall(id) {
+    let button = $("#button_" + id);
+    if (button.hasClass("disabled")) {
+      return;
+    }
+
+    post_action(id, "verify");
+  }
+
+  function test_webhook(id) {
+    post_action(id, "test_webhook");
+  }
+
+  function post_action(
+    id,
+    action_for,
+  ) {
+    let label = $("#label_" + id);
+    label.html("");
+    let csrftoken = $("input[name=csrfmiddlewaretoken]").val();
+
+    function csrfSafeMethod(method) {
+      // these HTTP methods do not require CSRF protection
+      return /^(GET|HEAD|OPTIONS|TRACE)$/.test(method);
+    }
+
+    $.ajaxSetup({
+      beforeSend: function (xhr, settings) {
+        // if not safe, set csrftoken
+        if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+          xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        }
+      },
+    });
+
+    let formData = new FormData();
+    formData.append("id", id);
+    formData.append("action_for", action_for);
+
+    if (action_for == "verify") {
+      url = $("#url_" + id).val();
+      if (url == null || url === "") {
+        label.html("Enter the URL");
+        return;
+      }
+      if (url.startsWith("https") !== true) {
+        label.html("URL must be https");
+        return;
+      }
+
+      formData.append("url", url);
+    }
+
+    $.ajax({
+      method: "POST",
+      data: formData,
+      dataType: "json",
+      processData: false,
+      cache: false,
+      contentType: false,
+      success: function (result) {
+        console.log('success');
+        console.log(result);
+        if (action_for == "verify") {
+          if (result.status === true) {
+            changeButton(id, "verified");
+          } else {
+            label.html("URL not verified");
+          }
+          if (result.error != null) {
+            label.html(result.error);
+          }
+        } else if (action_for == "test_webhook") {
+          if (result.status === true) {
+            label.html("Data posted successfully to webhook url");
+          } else if (result.error != null) {
+            label.html(result.error);
+          }
+        }
+      },
+      error: function (result) {
+        console.log("error");
+        console.log(result);
+      },
+    });
+  }
+</script>
+{% endblock %}
