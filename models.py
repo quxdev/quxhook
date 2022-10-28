@@ -54,7 +54,7 @@ class QuxHook(CoreModel):
     # call url in the hook and expect secret as response
     def validate(self):
         try:
-            response = requests.get(self.url, verify=False)
+            response = requests.get(self.url, verify=True)
         except requests.exceptions.SSLError as e:
             print("Website does not support https.\n")
             print(str(e))

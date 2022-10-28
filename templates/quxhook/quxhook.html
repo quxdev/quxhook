@@ -45,7 +45,7 @@
         </div>
         <div class="col-12 col-md-2">
           <label class="col-form-label font-weight-bold"
-            for="url_{{option.id}}">{{option.task}}/{{option.event}}</label>
+            for="url_{{option.id}}">{{option.task}}/{{option.event.name}}</label>
         </div>
         <div class="col-12 col-md-4">
           <input type="text" id="url_{{option.id}}" name="url_{{option.id}}"
@@ -201,7 +201,7 @@
       }
       if (url.startsWith("https") !== true) {
         label.html("URL must be https");
-        return;
+        //return;
       }
 
       formData.append("url", url);

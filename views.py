@@ -1,6 +1,6 @@
 from django.http import JsonResponse
 from django.views.generic import TemplateView
-from .models import QuxHook
+from .models import QuxHook, QuxHookEvent
 from django.apps import apps
 
 
@@ -20,10 +20,10 @@ class WebhookListView(TemplateView):
         hooks = []
         for confighook in confighooks:
             hook, status = QuxHook.objects.get_or_create(
-                user_slug=self.request.user.profile.slug,
+                user=self.request.user.profile.slug,
                 app=confighook["app"],
                 task=confighook["task"],
-                event=confighook["event"],
+                event=QuxHookEvent.objects.get(name=confighook["event"]),
             )
             hooks.append(hook)
 
@@ -40,6 +40,12 @@ class WebhookListView(TemplateView):
 
         target = QuxHook.objects.get(id=id)
         if action_for == "verify":
+            if not request.user.is_superuser:
+                if "https" not in url:
+                    return JsonResponse(
+                        {"status": False, "error": "https is required!"}
+                    )
+
             target.url = url
             status, error = target.validate()
         elif action_for == "test_webhook":
