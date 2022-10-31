@@ -78,9 +78,12 @@ class QuxHook(CoreModel):
             "event": self.event,
             "secret": self.secret,
         }
-        response = requests.post(url, data=data)
+        if url:
+            response = requests.post(url, data=data)
 
-        if response.status_code == 200:
-            return True, "Posted test data successfully"
-        else:
-            return False, "Could not post test data to the url!!"
+            if response.status_code == 200:
+                return True, "Posted test data successfully"
+            else:
+                return False, "Could not post test data to the url!!"
+
+        return False, "URL not entered!!"
